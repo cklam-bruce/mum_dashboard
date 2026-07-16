@@ -38,7 +38,7 @@ print(lists)
 inspectors = []
 dfs = {}
 for i in lists:
-    name = i.split('/')[-1].split('.')[0]
+    name = i.split('\\')[-1].split('.')[0] 
     inspectors.append(name)
     data = pd.read_csv(i)
     data.columns = data.columns.str.lower().str.strip()
@@ -47,13 +47,18 @@ for i in lists:
     data.drop(columns=data.columns[data.columns.str.contains('unknown')], inplace=True)
     data['Inspector'] = f'{name.upper()[0]}{name.lower()[1:]}'
     data['Style'] = 'Placeholder'
-    data['Time In'] = '11:11'
-    data['Time Out'] = '23:59'
-    data['Scheduled'] = False
+    data['Time In'] = '10:00'
+    data['Time Out'] = '17:00'
+    data['Season'] = None
+    data['Inspected Quantity'] = None
     ## Actual Pipeline
+    data['Order Quantity'] = pd.to_numeric(data['Order Quantity'].astype(str).str.replace(r'\.0$', '', regex=True).str.replace(r'\D+', '', regex=True), errors='coerce').fillna(0).astype(int)
     data['Inspection Date'] = data['Inspection Date'].ffill()
     data['Style Name'] = data['Style Name'].str.lower().str.strip()
     data['Scheduled'] = np.where((data['Country'].notnull()) & (data['Factory'].notnull()) & (data['Style'].notnull()), True, False)
+    data['Inspected Quantity'] = data['Inspected Quantity'].fillna(data['Order Quantity'] * 0.1).astype(int)
+    data['Report Emailed Date'] = (pd.to_datetime(data['Inspection Date'], errors='coerce') + pd.to_timedelta(2, unit='D')).dt.strftime('%m %b %Y')
+    data['Exit Date'] = pd.to_datetime(data['Report Emailed Date'], errors='coerce').dt.strftime('%m %b %Y')
     for j in categorical.keys():
         if j != 'None':
             data[j] = categorical_check(data, col=j)
@@ -66,5 +71,9 @@ for i in lists:
 print(dfs)
 # page(tb.tabulate(dfs['tony'], dfs['tony'].columns, tablefmt='grid'))
 
-
-
+big_df = None
+for i, df in enumerate(dfs.keys()):
+    if i == 0:
+        big_df = dfs[df]
+    else:
+        big_df = pd.concat([big_df, dfs[df]], ignore_index=True)
